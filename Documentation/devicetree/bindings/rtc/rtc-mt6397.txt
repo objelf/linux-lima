@@ -1,0 +1,41 @@
+Device-Tree bindings for MediaTek PMIC based RTC
+
+MediaTek PMIC based RTC is a independent function of MediaTek PMIC which is a
+type of multi-function device (MFD). And the RTC can being configured and set
+up with PMIC wrapper bus which is also common resource shared with the other
+functions found on PMIC.
+
+For MediaTek PMIC MFD bindings, see:
+Documentation/devicetree/bindings/mfd/mt6397.txt
+
+For MediaTek PMIC wrapper bus bindings, see:
+Documentation/devicetree/bindings/soc/mediatek/pwrap.txt
+
+Required parent node:
+- pmic
+	see Documentation/devicetree/bindings/mfd/mt6397.txt
+
+Required properties:
+- compatible: Should be one of follows
+	"mediatek,mt6323-rtc": for MT6323 PMIC
+	"mediatek,mt6397-rtc": for MT6397 PMIC
+
+Optional child node:
+- power-off
+	see Documentation/devicetree/bindings/power/reset/mt6397-rtc-poweroff.txt
+
+Example:
+
+	pmic {
+		compatible = "mediatek,mt6323";
+
+		...
+	
+		rtc {
+			compatible = "mediatek,mt6323-rtc";
+
+			power-off {
+				compatible = "mediatek,mt6323-rtc-poweroff";
+			};
+		};
+};
