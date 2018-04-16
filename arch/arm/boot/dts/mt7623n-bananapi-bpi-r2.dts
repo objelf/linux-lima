@@ -19,6 +19,7 @@
 
 	chosen {
 		stdout-path = "serial2:115200n8";
+		bootargs = "root=/dev/mmcblk1p1 rw rootwait";
 	};
 
 	cpus {
