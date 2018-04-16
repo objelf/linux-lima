@@ -37,6 +37,11 @@ enum lima_gpu_type {
 	GPU_MALI450,
 };
 
+enum lima_soc_type {
+	SOC_GENERIC = 0,
+	SOC_MEDIATEK = 1,
+};
+
 struct lima_device;
 
 #define LIMA_IP_MAX_NAME_LEN 32
@@ -112,6 +117,9 @@ struct lima_device {
 	struct platform_device *pdev;
 
 	enum lima_gpu_type gpu_type;
+	enum lima_soc_type soc_type;
+	void *soc;
+
 	void __iomem *iomem;
 
 	struct clk *clk_bus;

@@ -2,6 +2,10 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
+#include <soc/mediatek/smi.h>
+
 
 #include "lima.h"
 #include "lima_dlbu.h"
@@ -26,6 +30,75 @@
 #define LIMA_PPBCASTMMU_BASE   0x15000
 #define LIMA_DLBU_BASE         0x14000
 #define LIMA_DMA_BASE          0x12000
+
+static int lima_mediatek_init(struct lima_device *dev)
+{
+	struct device_node *np;
+	int err = -ENODEV;
+
+	np = of_parse_phandle(dev->dev->of_node, "mediatek,larb", 0);
+	if (np) {
+		struct platform_device *larb = of_find_device_by_node(np);
+
+		err = !larb || !platform_get_drvdata(larb);
+		if (err) {
+			err = -EPROBE_DEFER;
+			goto out;
+		}
+
+		dev->soc = kzalloc(sizeof(struct device), GFP_KERNEL);
+		if (!dev->soc) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		err = mtk_smi_larb_get(&larb->dev);
+		if (err) {
+			kfree(dev->soc);
+			goto out;
+		}
+
+		dev->soc = (void *)&larb->dev;
+	}
+
+out:
+	of_node_put(np);
+
+	pr_info("INFO@%s %d err = %d\n", __func__, __LINE__, err);
+
+	return err;
+}
+
+static void lima_mediatek_fini(struct lima_device *dev)
+{
+	mtk_smi_larb_put(dev->soc);
+
+	kfree(dev->soc);
+
+	pr_info("INFO@%s %d\n", __func__, __LINE__);
+}
+
+static int lima_soc_init(struct lima_device *dev)
+{
+	int err = 0;
+
+	pm_runtime_enable(dev->dev);
+	pm_runtime_get_sync(dev->dev);
+
+	if (dev->soc_type == SOC_MEDIATEK)
+		err = lima_mediatek_init(dev);
+
+	return err;
+}
+
+static void lima_soc_fini(struct lima_device *dev)
+{
+	if (dev->soc_type == SOC_MEDIATEK)
+		lima_mediatek_fini(dev);
+
+	pm_runtime_put_sync(dev->dev);
+	pm_runtime_disable(dev->dev);
+}
 
 static int lima_clk_init(struct lima_device *dev)
 {
@@ -256,6 +329,12 @@ int lima_device_init(struct lima_device *ldev)
 
 	np = ldev->dev->of_node;
 
+	err = lima_soc_init(ldev);
+	if (err) {
+		dev_err(ldev->dev, "soc init fail %d\n", err);
+		return err;
+	}
+
 	err = lima_clk_init(ldev);
 	if (err) {
 		dev_err(ldev->dev, "clk init fail %d\n", err);
@@ -433,4 +512,6 @@ void lima_device_fini(struct lima_device *ldev)
 	lima_regulator_fini(ldev);
 
 	lima_clk_fini(ldev);
+
+	lima_soc_fini(ldev);
 }

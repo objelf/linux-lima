@@ -16,6 +16,10 @@ module_param_named(sched_timeout_ms, lima_sched_timeout_ms, int, 0444);
 MODULE_PARM_DESC(sched_max_tasks, "max queued task num in a context (default 32)");
 module_param_named(sched_max_tasks, lima_sched_max_tasks, int, 0444);
 
+struct mali_soc_data {
+	enum lima_gpu_type gpu_type;
+	enum lima_soc_type soc_type;
+};
 
 static inline struct lima_device *to_lima_dev(struct drm_device *dev)
 {
@@ -285,6 +289,7 @@ static struct drm_driver lima_drm_driver = {
 
 static int lima_pdev_probe(struct platform_device *pdev)
 {
+	const struct mali_soc_data *data;
 	struct lima_device *ldev;
 	struct drm_device *ddev;
 	int err;
@@ -293,9 +298,12 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	if (!ldev)
 		return -ENOMEM;
 
+	data = of_device_get_match_data(&pdev->dev);
+
 	ldev->pdev = pdev;
 	ldev->dev = &pdev->dev;
-	ldev->gpu_type = (enum lima_gpu_type)of_device_get_match_data(&pdev->dev);
+	ldev->gpu_type = data->gpu_type;
+	ldev->soc_type = data->soc_type;
 
 	platform_set_drvdata(pdev, ldev);
 
@@ -341,9 +349,25 @@ static int lima_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct mali_soc_data mt7623_data = {
+	.gpu_type = GPU_MALI450,
+	.soc_type = SOC_MEDIATEK,
+};
+
+static const struct mali_soc_data generic_mali400_data = {
+	.gpu_type = GPU_MALI400,
+	.soc_type = SOC_GENERIC,
+};
+
+static const struct mali_soc_data generic_mali450_data = {
+	.gpu_type = GPU_MALI450,
+	.soc_type = SOC_GENERIC,
+};
+
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "arm,mali-400", .data = (void *)GPU_MALI400 },
-	{ .compatible = "arm,mali-450", .data = (void *)GPU_MALI450 },
+	{ .compatible = "arm,mali-400", .data = (void *)&generic_mali400_data },
+	{ .compatible = "arm,mali-450", .data = (void *)&generic_mali450_data },
+	{ .compatible = "mediatek,mt7623-mali", .data = (void *)&mt7623_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
